@@ -5,10 +5,10 @@ using Microsoft.Extensions.Logging;
 
 namespace FileTransferService.Functions
 {
-    public static class OrchestateScanUploadedFiles
+    public class OrchestateScanUploadedFiles
     {
         [FunctionName("OrchestateScanUploadedFiles")]
-        public static async Task Run([OrchestrationTrigger] IDurableOrchestrationContext context, ILogger log)
+        public async Task Run([OrchestrationTrigger] IDurableOrchestrationContext context, ILogger log)
         {
             ScanInfo scanInfo = context.GetInput<ScanInfo>();
             scanInfo.InstanceId = context.InstanceId;

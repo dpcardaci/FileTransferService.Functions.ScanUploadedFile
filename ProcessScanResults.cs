@@ -12,11 +12,16 @@ using Azure;
 using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace FileTransferService.Functions
 {
     public class ProcessScanResults
     {
+        private readonly IConfiguration _configuration;
+        public ProcessScanResults(IConfiguration configuration) {
+            _configuration = configuration;
+        }
 
         [FunctionName("ProcessScanResults")]
         public async Task Run([ActivityTrigger] FileInfo fileInfo, ILogger log) 
@@ -25,18 +30,12 @@ namespace FileTransferService.Functions
             string fileName = fileInfo.fileName;
             string destFileName = $"{id}-{fileName}";
             string baseStoragePath = "blob.core.usgovcloudapi.net";
-            string accountName = Environment.GetEnvironmentVariable("uploadstorage_name");
-            string accountSas = Environment.GetEnvironmentVariable("uploadstorage_sas");
+            string accountName = _configuration["UploadStorageAccountName"];
+            string accountSas = _configuration["UploadStorageAccountSasToken"];           
 
-            log.LogInformation($"account sas: {Environment.GetEnvironmentVariable("uploadstorage_sas")}");
-
-            log.LogInformation($"new files container: {Environment.GetEnvironmentVariable("newfiles_container")}");
-            log.LogInformation($"clean files container: {Environment.GetEnvironmentVariable("cleanfiles-container")}");
-            log.LogInformation($"quarantine files container: {Environment.GetEnvironmentVariable("quarantinefiles_container")}");            
-
-            string destContainer = !fileInfo.isThreat ? Environment.GetEnvironmentVariable("cleanfiles-container") 
-                                                      : Environment.GetEnvironmentVariable("quarantinefiles_container");
-            string srcContainer = Environment.GetEnvironmentVariable("newfiles_container");;
+            string destContainer = !fileInfo.isThreat ? _configuration["UploadCleanFilesContainerName"]
+                                                      : _configuration["UploadQuarantineFilesContainerName"];
+            string srcContainer = _configuration["UploadNewFilesContainerName"];
 
             string destPath = $"https://{accountName}.{baseStoragePath}/{destContainer}/{destFileName}";
             string srcPath = $"https://{accountName}.{baseStoragePath}/{srcContainer}/{fileName}";

@@ -4,15 +4,21 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace FileTransferService.Functions
 {
     public class ScanUploadedFile
     {
+        private readonly IConfiguration _configuration;
+        public ScanUploadedFile(IConfiguration configuration) {
+            _configuration = configuration;
+        }
+
         [FunctionName("ScanUploadedFile")]
-        public async Task Run([BlobTrigger("%newfiles_container%/{name}", 
-                              Connection = "uploadstorage_conn")] Stream myBlob, 
+        public async Task Run([BlobTrigger("%UploadNewFilesContainerName%/{name}", 
+                              Connection = "UploadStorageAccountConnectionString")] Stream myBlob, 
                               string name,
                               [DurableClient] IDurableOrchestrationClient orchestrationClient,
                               ILogger log)
@@ -22,7 +28,7 @@ namespace FileTransferService.Functions
             ScanInfo scanInfo = new ScanInfo() 
             {
                 FileName = name,
-                ContainerName = Environment.GetEnvironmentVariable("newfiles_container")
+                ContainerName = _configuration["UploadNewFilesContainerName"]
             };
             await orchestrationClient.StartNewAsync("OrchestateScanUploadedFiles", scanInfo);
         }

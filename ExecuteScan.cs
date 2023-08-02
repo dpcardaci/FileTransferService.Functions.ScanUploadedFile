@@ -2,18 +2,24 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace FileTransferService.Functions
 {
 
-    public static class ExecuteScan
+    public class ExecuteScan
     {
+        private readonly IConfiguration _configuration;
+        public ExecuteScan(IConfiguration configuration) {
+            _configuration = configuration;
+        }
+
         [FunctionName("ExecuteScan")]
-        public static async Task<ScanResults> Run([ActivityTrigger] ScanInfo scanInfo, ILogger log) 
+        public async Task<ScanResults> Run([ActivityTrigger] ScanInfo scanInfo, ILogger log) 
         {
-            var scannerHost = Environment.GetEnvironmentVariable("windowsdefender_host");
-            var scannerPort = Environment.GetEnvironmentVariable("windowsdefender_port");
+            var scannerHost = _configuration["WindowsDefenderHost"];
+            var scannerPort = _configuration["WindowsDefenderPort"];
 
             log.LogInformation($"Scanner Host: {scannerHost} and Scanner Port: {scannerPort}");
 
