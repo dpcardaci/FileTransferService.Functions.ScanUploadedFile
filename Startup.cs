@@ -3,9 +3,9 @@ using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Azure.Identity;
 
-[assembly: FunctionsStartup(typeof(FunctionApp.Startup))]
+[assembly: FunctionsStartup(typeof(FileTransferService.Functions.Scan.Startup))]
 
-namespace FunctionApp
+namespace FileTransferService.Functions.Scan
 {
     class Startup : FunctionsStartup
     {
