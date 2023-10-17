@@ -2,8 +2,8 @@ using System;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
+using FileTransferService.Functions.Core;
 using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -18,19 +18,31 @@ namespace FileTransferService.Functions
 
         [FunctionName("ScanUploadedFile")]
         public async Task Run([BlobTrigger("%UploadNewFilesContainerName%/{name}", 
-                              Connection = "UploadStorageAccountConnectionString")] Stream myBlob, 
+                              Connection = "UploadStorageAccountConnectionString")] Stream blob, 
                               string name,
-                              [DurableClient] IDurableOrchestrationClient orchestrationClient,
                               ILogger log)
         {
-            log.LogInformation($"C# Blob trigger function Processed blob\n Name:{name} \n Size: {myBlob.Length} Bytes");
+            log.LogInformation($"Scan processing triggered for: {name} at: {DateTime.Now}");
+            
+            var scannerHostIp = _configuration["WindowsDefenderHost"];
+            log.LogInformation($"Scanner Host: {scannerHostIp}");
 
-            ScanInfo scanInfo = new ScanInfo() 
+            ScannerProxy scanner = new ScannerProxy(scannerHostIp, log);
+
+            // To Do: Add logic to determine impact level
+            TransferInfo transferInfo = new TransferInfo 
             {
                 FileName = name,
-                ContainerName = _configuration["UploadNewFilesContainerName"]
+                FilePath = _configuration["UploadNewFilesContainerName"],
+                ImpactLevel = EnvironmentImpactLevel.IL5
             };
-            await orchestrationClient.StartNewAsync("OrchestateScanUploadedFiles", scanInfo);
+            
+            bool scanRequestAccepted = await scanner.ScanAsync(transferInfo);
+            if (scanRequestAccepted) {
+                log.LogInformation($"Scan request accepted for: {name} at: {DateTime.Now}");
+            } else {
+                log.LogError($"Scan request failed for: {name} at: {DateTime.Now}");
+            }
         }
     }
 }

@@ -1,13 +1,11 @@
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using System.Net.Http;
-using System.IO;
 using System.Net.Http.Headers;
 using System.Text;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Threading;
+using FileTransferService.Functions.Core;
 
 namespace FileTransferService.Functions
 {
@@ -18,7 +16,7 @@ namespace FileTransferService.Functions
         private HttpClient client;
         private ILogger log { get; }
 
-        public ScannerProxy(ILogger log, string hostIp)
+        public ScannerProxy(string hostIp, ILogger log)
         {
             var handler = new HttpClientHandler();
             handler.ClientCertificateOptions = ClientCertificateOption.Manual;
@@ -33,86 +31,41 @@ namespace FileTransferService.Functions
             client.Timeout = Timeout.InfiniteTimeSpan;
         }
 
-        public ScanResults Scan(string fileName, string containerName)
+        public async Task<bool> ScanAsync(TransferInfo transferInfo)
         {
-            string url = "https://" + hostIp + "/scan";
-            log.LogInformation($"Scanner URL: {url}");
-
-            var form = CreateMultiPartForm(fileName, containerName);
-            log.LogInformation("After create multipart form");
-
-            var response = client.PostAsync(url, form).Result;
-            log.LogInformation("After post resquest");
-
-            string stringContent = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            log.LogInformation("After response");
-
-            if (!response.IsSuccessStatusCode)
-            {
-                log.LogError($"Request Failed, {response.StatusCode}:{stringContent}");
-                return null;
-            }
-
-            log.LogInformation($"Request Success Status Code:{response.StatusCode}");
-
-            var responseDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(stringContent);
-            var scanResults = new ScanResults();
-            scanResults.isThreat = Convert.ToBoolean(responseDictionary["isThreat"]);
-            scanResults.threatType = responseDictionary["ThreatType"];
-
-            log.LogInformation($"isThreat: {scanResults.isThreat.ToString()}");
-            log.LogInformation($"threatType: {scanResults.threatType}");
-
-            return scanResults;
-        }
-
-        public async Task<ScanResults> ScanAsync(string fileName, string containerName)
-        {
-            log.LogInformation("In ScanAsync");
+            log.LogInformation($"Initializing scan request at: {DateTime.Now}");
 
             string url = "https://" + hostIp + "/scan";
             log.LogInformation($"Scanner URL: {url}");
 
-            var form = CreateMultiPartForm(fileName, containerName);
-            log.LogInformation("After create multipart form");
+            var form = CreateMultiPartForm(transferInfo.FileName, transferInfo.FilePath);
 
             var response = await client.PostAsync(url, form);
-            log.LogInformation("After post resquest");
-
-            string stringContent = await response.Content.ReadAsStringAsync();
-            log.LogInformation("After response");
+            log.LogInformation($"Posting scan request at: {DateTime.Now}");
 
             if (!response.IsSuccessStatusCode)
             {
-                log.LogError($"Request Failed, {response.StatusCode}:{stringContent}");
-                return null;
+                log.LogError($"Request Failed, {response.StatusCode}");
+                return false;
             }
 
             log.LogInformation($"Request Success Status Code:{response.StatusCode}");
+            return true;
 
-            var responseDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(stringContent);
-            var scanResults = new ScanResults();
-            scanResults.isThreat = Convert.ToBoolean(responseDictionary["isThreat"]);
-            scanResults.threatType = responseDictionary["ThreatType"];
-
-            log.LogInformation($"isThreat: {scanResults.isThreat.ToString()}");
-            log.LogInformation($"threatType: {scanResults.threatType}");
-
-            return scanResults;
         }
-        private static MultipartFormDataContent CreateMultiPartForm(string blobName, string containerName)
+        private static MultipartFormDataContent CreateMultiPartForm(string fileName, string filePath)
         {
             string boundry = GenerateRandomBoundry();
             MultipartFormDataContent form = new MultipartFormDataContent(boundry);
             
-            var blobNameContent = new StringContent(blobName);
-            var containerNameContent = new StringContent(containerName);
+            var fileNameContent = new StringContent(fileName);
+            var filePathContent = new StringContent(filePath);
 
-            blobNameContent.Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data");
-            containerNameContent.Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data");
-
-            form.Add(blobNameContent, "blobName");
-            form.Add(containerNameContent, "containerName");            
+            fileNameContent.Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data");
+            filePathContent.Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data");
+            
+            form.Add(fileNameContent, "fileName");
+            form.Add(filePathContent, "filePath");            
             return form;
         }
 
