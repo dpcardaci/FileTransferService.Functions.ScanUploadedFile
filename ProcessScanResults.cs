@@ -1,20 +1,15 @@
 using System;
-using System.Web;
-using System.IO;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.EventGrid;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using System.Text;
 using Azure;
-using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.Configuration;
 using Azure.Messaging.EventGrid;
-using FileTransferService.Functions.Core;
+using FileTransferService.Core;
 
 namespace FileTransferService.Functions
 {
@@ -45,9 +40,9 @@ namespace FileTransferService.Functions
             string accountName = _configuration["UploadStorageAccountName"];
             string accountSas = _configuration["UploadStorageAccountSasToken"];           
 
-            string destContainer = !transferInfo.IsThreat ? _configuration["UploadCleanFilesContainerName"]
+            string destContainer = !transferInfo.ScanInfo.IsThreat ? _configuration["UploadCleanFilesContainerName"]
                                                       : _configuration["UploadQuarantineFilesContainerName"];
-            if(transferInfo.IsThreat) {
+            if(transferInfo.ScanInfo.IsThreat) {
                 log.LogInformation($"Threat detected for: {fileName} at: {DateTime.Now}");
             } else {
                 log.LogInformation($"No threat detected for: {fileName} at: {DateTime.Now}");
@@ -70,6 +65,7 @@ namespace FileTransferService.Functions
 
             BlobClient srcClient = new BlobClient(srcUri, credential);
             await srcClient.DeleteAsync();
+
             log.LogInformation($"Delete operation from source container: {srcContainer} completed at: {DateTime.Now}");
             
         }
