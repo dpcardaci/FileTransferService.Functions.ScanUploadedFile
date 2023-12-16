@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Blobs;
@@ -45,16 +44,16 @@ namespace FileTransferService.Functions
             BlobClient blobClient = new BlobClient(blobUri, credential);
 
             BlobProperties blobProperties = await blobClient.GetPropertiesAsync();
-            var destinationImpactLevel = EnvironmentImpactLevel.Parse(blobProperties.Metadata["destinationimpactlevel"]);
+            var destinationImpactLevel = EnvironmentImpactLevel.Parse<EnvironmentImpactLevel>(blobProperties.Metadata["destinationimpactlevel"]);
             var transferId = blobProperties.Metadata["transferid"];
             var userPrincipalName = blobProperties.Metadata["userprincipalname"];
             var originationDateTime = blobProperties.Metadata["originationdatetime"];
 
             TransferInfo transferInfo = new TransferInfo 
             {
-                TransferId = transferId,
+                TransferId = Guid.Parse(transferId),
                 OriginatingUserPrincipalName = userPrincipalName,
-                OriginationDateTime = originationDateTime,
+                OriginationDateTime = DateTime.Parse(originationDateTime),
                 FileName = name,
                 FilePath = newFilesContainer,
                 ImpactLevel = destinationImpactLevel
@@ -82,6 +81,14 @@ namespace FileTransferService.Functions
             } else {
                 log.LogError($"Scan request failed for: {name} at: {DateTime.Now}");
 
+                TransferError transferError = new TransferError
+                {
+                    TransferId = Guid.Parse(transferId),
+                    OriginatingUserPrincipalName = userPrincipalName,
+                    OriginationDateTime = DateTime.Parse(originationDateTime),
+                    FileName = name
+                };
+
                 EventGridPublisherClient scanErrorPublisher = new EventGridPublisherClient(
                     new Uri(_configuration["ScanErrorTopicUri"]), 
                     new Azure.AzureKeyCredential(_configuration["ScanErrorTopicKey"]));
@@ -89,8 +96,8 @@ namespace FileTransferService.Functions
                 scanEventGridEvent = new EventGridEvent(
                     "FileTransferService/Scan", 
                     "Error",
-                     "1.0", 
-                     new ScanError($"Scan request failed for: {name} at: {DateTime.Now}")
+                     "1.0",
+                     transferError
                 );
 
                 scanErrorPublisher.SendEvent(scanEventGridEvent);

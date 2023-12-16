@@ -44,6 +44,21 @@ namespace FileTransferService.Functions
                                                       : _configuration["UploadQuarantineFilesContainerName"];
             if(transferInfo.ScanInfo.IsThreat) {
                 log.LogInformation($"Threat detected for: {fileName} at: {DateTime.Now}");
+
+                EventGridEvent threatEventGridEvent;
+                EventGridPublisherClient threatDetectedPublisher = new EventGridPublisherClient(
+                    new Uri(_configuration["ThreatDetectedTopicUri"]),
+                    new AzureKeyCredential(_configuration["ThreatDetectedTopicKey"]));
+
+                threatEventGridEvent = new EventGridEvent(
+                    "FileTransferService/Threat",
+                    "Detected",
+                    "1.0",
+                    transferInfo
+                );
+
+                await threatDetectedPublisher.SendEventAsync(threatEventGridEvent);
+
             } else {
                 log.LogInformation($"No threat detected for: {fileName} at: {DateTime.Now}");
             }
@@ -62,6 +77,41 @@ namespace FileTransferService.Functions
             CopyFromUriOperation copyFromUriOperation = await destClient.StartCopyFromUriAsync(srcUri);
             copyFromUriOperation.WaitForCompletion();
             log.LogInformation($"Copy operation to destination container: {destContainer} completed at: {DateTime.Now}");
+
+            EventGridEvent destinationEventGridEvent;
+
+            EventGridPublisherClient destinationPublisher;
+
+            transferInfo.FilePath = destContainer;
+            if (transferInfo.ScanInfo.IsThreat)
+            {
+                destinationPublisher = new EventGridPublisherClient(
+                    new Uri(_configuration["FileQuarantinedTopicUri"]),
+                    new AzureKeyCredential(_configuration["FileQuarantinedTopicKey"]));
+
+                destinationEventGridEvent = new EventGridEvent(
+                    "FileTransferService/Threat",
+                    "Quarantined",
+                    "1.0",
+                    transferInfo
+                );
+            }
+            else
+            {
+                destinationPublisher = new EventGridPublisherClient(
+                    new Uri(_configuration["TransferStagedTopicUri"]),
+                    new AzureKeyCredential(_configuration["TransferStagedTopicKey"]));
+
+                destinationEventGridEvent = new EventGridEvent(
+                    "FileTransferService/Transfer",
+                    "Staged",
+                    "1.0",
+                    transferInfo
+                );
+            }
+
+            await destinationPublisher.SendEventAsync(destinationEventGridEvent);
+
 
             BlobClient srcClient = new BlobClient(srcUri, credential);
             await srcClient.DeleteAsync();
