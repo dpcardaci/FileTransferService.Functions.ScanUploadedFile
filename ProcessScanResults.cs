@@ -25,8 +25,8 @@ namespace FileTransferService.Functions
         {
             if(eventGridEvent.EventType == "Error")
             {
-                ScanError scanError = JsonSerializer.Deserialize<ScanError>(eventGridEvent.Data.ToString());
-                log.LogError($"Scan Error: {scanError.ErrorMessage}");
+                TransferError transferError = JsonSerializer.Deserialize<TransferError>(eventGridEvent.Data.ToString());
+                log.LogError($"Transfer Error: {transferError.Message}");
                 return;
             }
             
@@ -86,8 +86,8 @@ namespace FileTransferService.Functions
             if (transferInfo.ScanInfo.IsThreat)
             {
                 destinationPublisher = new EventGridPublisherClient(
-                    new Uri(_configuration["FileQuarantinedTopicUri"]),
-                    new AzureKeyCredential(_configuration["FileQuarantinedTopicKey"]));
+                    new Uri(_configuration["ThreatQuarantinedTopicUri"]),
+                    new AzureKeyCredential(_configuration["ThreatQuarantinedTopicKey"]));
 
                 destinationEventGridEvent = new EventGridEvent(
                     "FileTransferService/Threat",
