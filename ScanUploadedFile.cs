@@ -47,14 +47,14 @@ namespace FileTransferService.Functions
             var destinationImpactLevel = EnvironmentImpactLevel.Parse<EnvironmentImpactLevel>(blobProperties.Metadata["destinationimpactlevel"]);
             var transferId = blobProperties.Metadata["transferid"];
             var userPrincipalName = blobProperties.Metadata["userprincipalname"];
-            var onBehalfOfPrincipalName = blobProperties.Metadata["onbehalfofprincipalname"];
+            var onBehalfOfUserPrincipalName = blobProperties.Metadata["onbehalfofuserprincipalname"];
             var originationDateTime = blobProperties.Metadata["originationdatetime"];
 
             TransferInfo transferInfo = new TransferInfo 
             {
                 TransferId = Guid.Parse(transferId),
                 OriginatingUserPrincipalName = userPrincipalName,
-                OnBehalfOfUserPrincipalName = onBehalfOfPrincipalName,
+                OnBehalfOfUserPrincipalName = onBehalfOfUserPrincipalName,
                 OriginationDateTime = DateTime.Parse(originationDateTime),
                 FileName = name,
                 FilePath = newFilesContainer,
@@ -87,7 +87,7 @@ namespace FileTransferService.Functions
                 {
                     TransferId = Guid.Parse(transferId),
                     OriginatingUserPrincipalName = userPrincipalName,
-                    OnBehalfOfUserPrincipalName = onBehalfOfPrincipalName,
+                    OnBehalfOfUserPrincipalName = onBehalfOfUserPrincipalName,
                     OriginationDateTime = DateTime.Parse(originationDateTime),
                     FileName = name
                 };
